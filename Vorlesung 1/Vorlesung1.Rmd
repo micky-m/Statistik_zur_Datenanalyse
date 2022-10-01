@@ -1,0 +1,24 @@
+---
+title: "Datenprojekt - Single-resident apartment data"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Wir bearbeiten ein  [CASAS Open Data Set](http://casas.wsu.edu/datasets/) aus dem Bereich Care Tech. 
+Ladet das [Dataset 33](http://casas.wsu.edu/datasets/hh111.zip) runter und lest die Daten ein.
+
+Die ZIP Datei enthält eine Readme mit Informationen zum Datensatz und den Sensoren, sowie auch eine Darstellung der Orte der angebrachten Sensoren in der Wohnung. 
+
+
+```{r}
+library(tidyverse)
+mydata <- read_tsv("../../Daten/hh111/hh111.ann.txt", col_names = c("timestamp", "name.of.sensor", "room.level", "room.detail", "message", "sensor.type", "classes"))
+mydata
+```
+
+
+```{r}
+myfeatures <- read_csv("../../Daten/hh111/hh111.ann.features.csv")
+myfeatures
+```
