@@ -5,6 +5,9 @@
 # install.packages("arules")
 library(arules)
 
+# Vignetten
+??arules
+
 #Datensaetze in Paketen
 data("Groceries")
 ?Groceries

@@ -520,9 +520,10 @@ eis</code></pre>
 <pre class="r"><code>eis$Sorte</code></pre>
 <pre><code>## [1] &quot;Schoko&quot;   &quot;Vanille&quot;  &quot;Schoko&quot;   &quot;Erdbeere&quot; &quot;Vanille&quot;</code></pre>
 <p>Mit Namen (aber auch Index eis[,2]) kann auf einzelne Spalte
-zugegriffen werden. Wir sehen, die obige Spalte besteht nur aus
-“char”-Einträgen. Eine effiziente Methode zur Arbeit mit strings ist es,
-das Datenformat <strong>factor</strong> zu nehmen:</p>
+zugegriffen werden. Wir sehen, wenn wir uns mit str() die Struktur
+ansehen, die obige Spalte besteht nur aus “char”-Einträgen. Eine
+effiziente Methode zur Arbeit mit strings ist es, das Datenformat
+<strong>factor</strong> zu nehmen:</p>
 <ul>
 <li>Wiederholende Strings als Levels gespeichert</li>
 <li>in Spalte nur numerischer Factor</li>
@@ -532,7 +533,28 @@ das Datenformat <strong>factor</strong> zu nehmen:</p>
 ##  $ preis  : num  0.6 1.2 1 0.8 1.2
 ##  $ Sorte  : chr  &quot;Schoko&quot; &quot;Vanille&quot; &quot;Schoko&quot; &quot;Erdbeere&quot; ...
 ##  $ Groesse: chr  &quot;klein&quot; &quot;normal&quot; &quot;normal&quot; &quot;klein&quot; ...</code></pre>
-<p>R erkennt automatisch schon, wenn sich ein factor anbietet.</p>
+<pre class="r"><code>eis$Sorte.fact &lt;- factor(eis$Sorte)
+levels(eis$Sorte.fact)</code></pre>
+<pre><code>## [1] &quot;Erdbeere&quot; &quot;Schoko&quot;   &quot;Vanille&quot;</code></pre>
+<p>Intern werden die Daten wie folgt abgespeichert:</p>
+<pre class="r"><code>#interne Darstellung
+as.integer(eis$Sorte.fact)</code></pre>
+<pre><code>## [1] 2 3 2 1 3</code></pre>
+<p>Für factors gibt es auf der Hilfeseite eine Warnung, die ich gerne
+hier auch noch einmal aufführen möchte.</p>
+<p><strong>Warning</strong> The interpretation of a factor depends on
+both the codes and the “levels” attribute. Be careful only to compare
+factors with the same set of levels (in the same order). In particular,
+as.numeric applied to a factor is meaningless, and may happen by
+implicit coercion. To transform a factor f to approximately its original
+numeric values, as.numeric(levels(f))[f] is recommended and slightly
+more efficient than as.numeric(as.character(f)).</p>
+<p>The levels of a factor are by default sorted, but the sort order may
+well depend on the locale at the time of creation, and should not be
+assumed to be ASCII.</p>
+<p>There are some anomalies associated with factors that have NA as a
+level. It is suggested to use them sparingly, e.g., only for tabulation
+purposes.</p>
 </div>
 </div>
 <div id="fehlwerte-na" class="section level2">

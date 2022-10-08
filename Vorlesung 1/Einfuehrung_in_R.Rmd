@@ -153,7 +153,7 @@ Zugriff im Dataframe:
 eis$Sorte
 ```
 
-Mit Namen (aber auch Index eis[,2]) kann auf einzelne Spalte zugegriffen werden. Wir sehen, die obige Spalte besteht nur aus "char"-Einträgen. Eine effiziente Methode zur Arbeit mit strings ist es, das Datenformat **factor** zu nehmen:
+Mit Namen (aber auch Index eis[,2]) kann auf einzelne Spalte zugegriffen werden. Wir sehen, wenn wir uns mit str() die Struktur ansehen, die obige Spalte besteht nur aus "char"-Einträgen. Eine effiziente Methode zur Arbeit mit strings ist es, das Datenformat **factor** zu nehmen:
 
 - Wiederholende Strings als Levels gespeichert
 - in Spalte nur numerischer Factor
@@ -161,8 +161,25 @@ Mit Namen (aber auch Index eis[,2]) kann auf einzelne Spalte zugegriffen werden.
 ```{r}
 str(eis)
 ```
- 
-R erkennt automatisch schon, wenn sich ein factor anbietet.
+```{r}
+eis$Sorte.fact <- factor(eis$Sorte)
+levels(eis$Sorte.fact)
+```
+
+Intern werden die Daten wie folgt abgespeichert:
+
+```{r}
+#interne Darstellung
+as.integer(eis$Sorte.fact)
+```
+Für factors gibt es auf der Hilfeseite eine Warnung, die ich gerne hier auch noch einmal aufführen möchte. 
+
+**Warning**
+The interpretation of a factor depends on both the codes and the "levels" attribute. Be careful only to compare factors with the same set of levels (in the same order). In particular, as.numeric applied to a factor is meaningless, and may happen by implicit coercion. To transform a factor f to approximately its original numeric values, as.numeric(levels(f))[f] is recommended and slightly more efficient than as.numeric(as.character(f)).
+
+The levels of a factor are by default sorted, but the sort order may well depend on the locale at the time of creation, and should not be assumed to be ASCII.
+
+There are some anomalies associated with factors that have NA as a level. It is suggested to use them sparingly, e.g., only for tabulation purposes.
 
 ## Fehlwerte NA
 
