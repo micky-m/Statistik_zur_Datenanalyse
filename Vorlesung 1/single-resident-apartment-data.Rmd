@@ -51,8 +51,7 @@ Wie viele Beobachtungen haben Sie von welchen Einzel-Sensoren?
 
 ```{r}
 mydata %>% 
-  count(name.of.sensor) %>% 
-  print (n = 38)
+  count(name.of.sensor) 
 ```
 
 Temperatur-Sensoren sind in den Rohdaten die einzigen metrischen Werte. Für einen ersten Eindruck grafisch darstellen. Wie viele Temepratur-Sensoren gibt es in dem Datensatz und wie viele Beobachtungen stammen von den einzelnen Temperatursensoren?
@@ -72,12 +71,22 @@ pl1 <- ggplot(data= mydata %>%
       position=position_jitter(h=0.15,w=0.15))
 ```
 
-Die Ausgabe von ggplot ist nicht Interaktiv, daher benutze ich gerne zusätzlich das Paket plotly. Gibt es Auffälligkeiten?
+Die Ausgabe von ggplot ist nicht Interaktiv, daher benutze ich gerne zusätzlich das Paket plotly. Der Paramerer position_jitter sorgt dafür, dass Punkte nicht überlappen, sondern wenn Beobachtungen häufiger vorkommen, diese auch häufiger Sichtbar sind und dafür eine kleine Abweichung zugerechnet bekommen. Gibt es Auffälligkeiten?
 
 ```{r}
 library(plotly) 
 fig <- ggplotly(pl1)
 fig
+```
+
+Betrachtung als Boxplots. Wenn die Boxen sich nicht mehr überlappen spricht man von statistisch signifikant unterschiedlich. Ausreißer erkennt man an
+
+```{r}
+pl.box <- ggplot(data= mydata %>% 
+                    filter(sensor.type == "Control4-Temperature"))+
+      geom_boxplot(aes(y=message,x=classes, fill= name.of.sensor))
+
+ggplotly(pl.box)
 ```
 
 Einige Sensor-Beobachtungen haben bereits ein Flag "Ignore". Es wird deutlich, dass das die Beobachtungen von **T101** sind, die anscheinend nicht valide sind. 
@@ -91,6 +100,8 @@ pl2 <- ggplot(data= mydata %>%
 
 ggplotly(pl2)
 ```
+
+
 
 Hier alle Beobachtungswerte ohne Ignore-Flag.
 
