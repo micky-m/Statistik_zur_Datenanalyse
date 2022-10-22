@@ -34,7 +34,7 @@ set.seed (321)
 n_total <- nrow(Auto)
 
 # Sample ziehen
-index <- sample(n_total, size=trunc(.7 * n_total))
+index <- sample(n_total, size=trunc(.5 * n_total))
 
 Auto_train_data <- Auto %>%
   filter(row_number() %in% index)
