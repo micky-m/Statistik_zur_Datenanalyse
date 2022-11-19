@@ -291,6 +291,10 @@ Interpretation des Modells, z.B, der Effekt von **Hits**:
 
 Nimmt Anzahl von Hits um eine Einheit zu ( 1 Hit), so steigt **ceteris paribus (c.p.)** das **durchschnittliche** Gehalt um 6,924 T US Dollar.  Ob dieser Effekt statistisch signifikant ist, wird nächste Vorlesung behandelt.
 
+```{r}
+summary(lm(Salary ~ AtBat + Hits + Walks + CAtBat + CRuns+ CRBI  + CWalks + League +Division +PutOuts   + Assists , data = Hitters))
+```
+
 
 # Zusatzaufgabe zu kategorialen Daten
 
