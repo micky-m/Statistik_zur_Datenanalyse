@@ -1,0 +1,220 @@
+---
+title: "Statistik zur Datenanalyse"
+author: "Dr. Meike Wocken"
+date: "2022-10-08"
+output: html_document
+---
+
+## Datenstruktur
+
+Einfache Dateneingabe mittels combine c(). Werte dann in Vektor oder Liste.
+```{r}
+preis = c(0.6, 1.2, 1, .8, 1.2)
+preis
+```
+
+Auf Elemente im Vektor kann dann mittels Index zugegriffen werden. Dafür sind Sequenzen von Werten hilfreich.
+```{r}
+1:10
+8:3
+seq(1,4,.25)
+```
+
+Zugriff im Vektor
+```{r}
+preis[1]
+preis[2:4]
+preis[c(5,2,4)]
+# letzter Eintrag im Vektor mittels length()
+preis[length(preis)]
+```
+
+Negative Indizes zum entfernen von Einträgen aus dem Vektor. Es müsste wieder ein Assignment stattfinden, damit das Entfernen persistiert ist.
+```{r}
+preis[-c(2,4)]
+preis[-1]
+```
+
+### Komponentenweise Berechnung in R
+
+Zwei Vektoren sind gegeben
+```{r}
+x = 1:3
+x
+y = 4:6
+y
+```
+
+Wir sehen, alle Berechnungen werden komponentenweise durchgeführt. Keine Berücksichtigung von Matrixmultiplikation.
+```{r}
+x + y
+x * y
+2 * x
+3 + y
+```
+
+Auch wird das kürzere Objekt "verlängert".
+```{r}
+1:2 + x
+```
+
+Eine Funktion wird auf jeder Komponente einzeln ausgeführt
+```{r}
+sqrt(y)
+```
+
+### Matrizen-Rechnung
+```{r}
+V1 = 1:10
+V1
+V2 = 1:4
+V2
+V3 = 4:1
+V3
+```
+
+Wir sehen, V2 wird "verlängert", um dann Eintrag für Eintrag miteinander multipliziert zu werden.
+```{r}
+V1 * V2
+```
+
+**Kreuzprodukt**
+```{r}
+V1 %*%t(V2)
+```
+
+
+**Skalarprodukt**
+```{r}
+t(V2) %*%V3
+```
+
+Mit dem Befehl matrix() kann direkt Matrix gebildet werden.
+```{r}
+?matrix
+```
+
+```{r}
+M1 <- matrix(c(2,5,3,4), ncol = 2)
+M1
+```
+
+Nachteil bei Matrizen: sie müssen immer den gleichen Objekttyp (char, num, factor) für alle Einträge haben.
+
+Lösung: **Listen**
+Listen fssen Objekte von unterschiedlichem Typ und unterschiedlichem Format zusammen. Super für Funktions-Rückgaben.
+```{r}
+bsp.liste = list("Buchstaben" = c("A", "B", "C"),
+                 "Testmatrix" = matrix(1:4,ncol=2),
+                 rep(2, times = 5))
+bsp.liste
+```
+
+Ansprechen von Objekten in Listen:
+**Name**
+```{r}
+bsp.liste[["Buchstaben"]]
+```
+**Index**
+```{r}
+bsp.liste[[1]]
+```
+**Dollar-Zeichen** (hierbei auch Auto-Vervollständigung möglich bei Eingabe in RStudio)
+```{r}
+bsp.liste$Buchstaben
+```
+Zweites Element der Buchstaben:
+```{r}
+bsp.liste[["Buchstaben"]][2]
+```
+Element der Matrix(Angabe [Zeile, Spalte]):
+```{r}
+bsp.liste[[2]][2,1]
+```
+
+##Data Frames
+
+Vektoren mit unterschiedlichen Datentypen, aber gleicher Länge werden zu einem Data Frame zusammengefasst.
+
+Z.B. bei der Untersuchung des Preises für Eis, werden weitere Merkmale erhoben.
+
+```{r}
+eis = data.frame(preis,
+                 "Sorte" = c("Schoko", "Vanille", "Schoko", 
+                             "Erdbeere", "Vanille"),
+                 "Groesse" = c("klein", "normal", "normal", "klein",
+                               "normal"))
+eis
+```
+
+
+Zugriff im Dataframe:
+```{r}
+eis$Sorte
+```
+
+Mit Namen (aber auch Index eis[,2]) kann auf einzelne Spalte zugegriffen werden. Wir sehen, wenn wir uns mit str() die Struktur ansehen, die obige Spalte besteht nur aus "char"-Einträgen. Eine effiziente Methode zur Arbeit mit strings ist es, das Datenformat **factor** zu nehmen:
+
+- Wiederholende Strings als Levels gespeichert
+- in Spalte nur numerischer Factor
+
+```{r}
+str(eis)
+```
+```{r}
+eis$Sorte.fact <- factor(eis$Sorte)
+levels(eis$Sorte.fact)
+```
+
+Intern werden die Daten wie folgt abgespeichert:
+
+```{r}
+#interne Darstellung
+as.integer(eis$Sorte.fact)
+```
+Für factors gibt es auf der Hilfeseite eine Warnung, die ich gerne hier auch noch einmal aufführen möchte. 
+
+**Warning**
+The interpretation of a factor depends on both the codes and the "levels" attribute. Be careful only to compare factors with the same set of levels (in the same order). In particular, as.numeric applied to a factor is meaningless, and may happen by implicit coercion. To transform a factor f to approximately its original numeric values, as.numeric(levels(f))[f] is recommended and slightly more efficient than as.numeric(as.character(f)).
+
+The levels of a factor are by default sorted, but the sort order may well depend on the locale at the time of creation, and should not be assumed to be ASCII.
+
+There are some anomalies associated with factors that have NA as a level. It is suggested to use them sparingly, e.g., only for tabulation purposes.
+
+## Fehlwerte NA
+
+```{r}
+eis$preis[3] = NA
+```
+
+Falls mal kein Wert gegeben ist, wird ein Fehlwert NA eingetragen.
+
+```{r}
+3 > 5
+3 < 5
+3 < NA
+3 < NULL
+```
+
+Bei logischem Vergleich mit einem NA Wert kommt NA raus. Bei Vergleich mit NULL (auch ein Fehlwert), dann kein logischer Wert mehr.
+
+Probleme mit Fehlwerten:
+```{r}
+mean(eis$preis)
+```
+
+Es muss entschieden werden, wie mit Fehlwerten umzugehen ist in der Analyse (entfernen, drin lassen, andere Werte einsetzen)
+```{r}
+mean(eis$preis, na.rm = TRUE)
+```
+
+## Arbeitsverzeichnis
+
+Im Arbeitsverzeichnis wird nach Dateien gesucht, hier werden Objekte abgespeichert. Auf das richtige Arbeitsverzeichnis ist zu achten oder es ist mit Projekten gearbeitet werden. 
+
+```{r, eval=FALSE}
+# Arbeitsverzeichnis der Konsole ueberpruefen
+getwd()
+# Bei Bedarf neues Verzeichnis angeben
+#setwd("/Users/maxmueller") 
+```

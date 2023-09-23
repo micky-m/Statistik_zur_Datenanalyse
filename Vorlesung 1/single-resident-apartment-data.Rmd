@@ -1,0 +1,164 @@
+---
+title: "Datenprojekt - Single-resident apartment data"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+Wir bearbeiten ein  [CASAS Open Data Set](http://casas.wsu.edu/datasets/) aus dem Bereich Care Tech. 
+Ladet das [Dataset 33](http://casas.wsu.edu/datasets/hh111.zip) runter und lest die Daten ein.
+
+Die ZIP Datei enthält eine Readme mit Informationen zum Datensatz und den Sensoren, sowie auch eine Darstellung der Orte der angebrachten Sensoren in der Wohnung. 
+
+Hier ein erster Eindruck von den annotierten Daten:
+
+```{r}
+library(tidyverse)
+mydata <- read_tsv("../../Daten/hh111/hh111.ann.txt", 
+                   col_names = c("timestamp", "name.of.sensor", 
+                                 "room.level", "room.detail", "message", "sensor.type",
+                                  "classes"))
+mydata
+```
+
+Mithilfe einer Python-Bibliothek (AL-Smarthome)[https://github.com/WSU-CASAS/AL-Smarthome] sind daraus Features extrahiert worden für weitere Untersuchungen. 
+
+```{r}
+myfeatures <- read_csv("../../Daten/hh111/hh111.ann.features.csv")
+myfeatures
+```
+
+# Exploration
+
+Gibt es Fehlwerte? Nein, zumindest keine expliziten NA-Werte.
+
+```{r}
+mydata %>%
+    is.na() %>%
+    sum()
+```
+
+Welche Sensor-Typen liegen vor?
+
+```{r}
+mydata %>% 
+  count(sensor.type)
+```
+
+Wie viele Beobachtungen haben Sie von welchen Einzel-Sensoren?
+
+```{r}
+mydata %>% 
+  count(name.of.sensor) 
+```
+
+Temperatur-Sensoren sind in den Rohdaten die einzigen metrischen Werte. Für einen ersten Eindruck grafisch darstellen. Wie viele Temepratur-Sensoren gibt es in dem Datensatz und wie viele Beobachtungen stammen von den einzelnen Temperatursensoren?
+
+```{r}
+mydata %>% 
+  filter(sensor.type == "Control4-Temperature") %>% 
+  count(name.of.sensor)
+```
+
+```{r}
+library(ggplot2)
+
+pl1 <- ggplot(data= mydata %>% 
+                    filter(sensor.type == "Control4-Temperature"))+
+      geom_point(aes(y=message,x=classes,color=name.of.sensor),
+      position=position_jitter(h=0.15,w=0.15))
+```
+
+Die Ausgabe von ggplot ist nicht Interaktiv, daher benutze ich gerne zusätzlich das Paket plotly. Der Paramerer position_jitter sorgt dafür, dass Punkte nicht überlappen, sondern wenn Beobachtungen häufiger vorkommen, diese auch häufiger Sichtbar sind und dafür eine kleine Abweichung zugerechnet bekommen. Gibt es Auffälligkeiten?
+
+```{r}
+library(plotly) 
+fig <- ggplotly(pl1)
+fig
+```
+
+Betrachtung als Boxplots. Wenn die Boxen sich nicht mehr überlappen spricht man von statistisch signifikant unterschiedlich. Ausreißer erkennt man an
+
+```{r}
+pl.box <- ggplot(data= mydata %>% 
+                    filter(sensor.type == "Control4-Temperature"))+
+      geom_boxplot(aes(y=message,x=classes, fill= name.of.sensor))
+
+ggplotly(pl.box)
+```
+
+Einige Sensor-Beobachtungen haben bereits ein Flag "Ignore". Es wird deutlich, dass das die Beobachtungen von **T101** sind, die anscheinend nicht valide sind. 
+
+```{r}
+pl2 <- ggplot(data= mydata %>% 
+                filter(sensor.type == "Control4-Temperature") %>% 
+                filter(room.detail == "Ignore"))+
+      geom_point(aes(y=message,x=classes, color=name.of.sensor),
+                position=position_jitter(h=0.15,w=0.15))
+
+ggplotly(pl2)
+```
+
+
+
+Hier alle Beobachtungswerte ohne Ignore-Flag.
+
+```{r}
+pl3 <- ggplot(data= mydata %>% 
+                filter(sensor.type == "Control4-Temperature") %>% 
+                filter(room.detail != "Ignore"))+
+      geom_point(aes(y=message,x=classes, color=name.of.sensor),
+                position=position_jitter(h=0.15,w=0.15))
+
+ggplotly(pl3)
+```
+
+
+# Assoziationsregeln zur Exploration von Aktivitäten
+
+Bei welchen Aktivitäten verändern Sensoren ihren Zustand? Dafür ist der Name des Sensors ein Item. Jeder Beobachtungstag ist eine neue Transaktion. Dann kann mit apriori-Algorithmus ermittelt werden, welche Sensoren gemeinsam ihren Zustand während bestimmter Akitivitäten ändern. 
+
+```{r}
+library(arules)       # Assoziationsregeln
+library(lubridate)    #Extraktion von day in year yday()
+
+# jeder einzelne Tag ist eine Transaktion
+mydata <- mydata %>%
+            mutate(trans_id = yday(timestamp))  %>%
+              filter((room.level != "Ignore")|(room.detail != "Ignore")) 
+
+# Aktivitaeten Label bekommen            
+groups <- mydata %>% select(classes) %>% base::unique() %>% unlist()
+```
+
+Um die Ergebnisse des apriori-Algorithmus abspeichern zu können, wird vorher eine Liste angelegt. Für jede Aktivität gibt es einen Eintrag.
+
+```{r}
+myrules <- vector("list",length(groups))
+names(myrules) <- groups
+```
+
+Für jede Aktivität ermittelt apriori Algorithmus Regeln.
+
+```{r, message=FALSE, warning=FALSE}
+for (i in seq_along(groups)){
+myrules[[groups[i]]] <- mydata %>%
+    filter(classes == groups[i]) %>%
+    transactions(format = "long", cols=c("trans_id","name.of.sensor")) %>%
+      apriori(parameter=list(supp=0.5, conf=0.9, maxlen=6)) 
+}
+```
+
+Darstellung der Assoziationsregeln. Eine "leere" Regel, d.h. LHS = {}, bedeutet, dass egal was links im Itemset steht, es wird immer zur RHS führen. 
+
+```{r, message=FALSE, warning=FALSE}
+# Ausgabe der Ergebnisse
+for (i in seq_along(groups)){
+print(groups[i])
+myrules[[groups[i]]] %>% head(n=3, by="lift") %>% inspect
+}
+```
+
+
