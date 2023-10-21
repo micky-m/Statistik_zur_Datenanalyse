@@ -1,0 +1,342 @@
+---
+title: "Aufgaben Vorlesung 2"
+author: "Dr. Meike Wocken"
+date: "2023-10-21"
+output: html_document
+---
+
+# Aufgabe 6
+
+Verwenden Sie bitte den gegebenen Datensatz Auto aus dem R Paket ISLR.
+
+
+```{r}
+library(ISLR)
+library(tidyverse)
+?Auto
+Auto <- tibble(Auto)
+```
+
+## a) Test- und Trainingsdaten
+
+Unterteilen Sie den Datensatz bitte in einen Test- und einen Trainingsdatensatz. Schätzen Sie bitte das Modell
+$$mpg = \beta_0 + \beta_1 cylinders + \beta_2 displacement + \beta_3 horsepower + \beta_4 weight + \epsilon$$
+und berechnen den RMSE jeweils auf Test- und Trainingsdaten.
+
+### Sample für Trainingsdatensatz ziehen
+
+Es liegen 392 Beobachtungen vor. Wir werden eine Aufteilung 50% Trainingsdaten und 50% Testdaten machen. In der Praxis sind häufig auch 70% Training- und 30% Testdaten. Die Aufteilung ist frei wählbar nach Datenlage und Ziel der Schätzung. 
+
+
+```{r}
+set.seed (321)
+# Anzahl Beobachtungen
+n_total <- nrow(Auto)
+
+# Sample ziehen
+index <- sample(n_total, size=trunc(.5 * n_total))
+
+Auto_train_data <- Auto %>%
+  filter(row_number() %in% index)
+
+Auto_test_data <- Auto %>%
+  filter(!(row_number() %in% index))
+
+```
+
+### Modell schätzen 
+
+Wir schätzen ein lineares Modell. Das Ergebnis ist wieder ein Objekt. Der Summary-Befehl zeigt Schätzer, Informationen zur Anpassungsgüte und den Parametern an.  
+
+```{r}
+auto_lm_train <- lm(data = Auto_train_data, mpg ~ cylinders + displacement + horsepower  + weight)
+
+auto_lm_train %>% summary()
+```
+
+### RMSE (Root Mean Squared Error) für Trainingsdaten berechnen
+
+RMSE für Trainingsdaten ausgeben lassen. 
+
+```{r}
+# Residuen 
+auto_res <- auto_lm_train %>%
+   residuals()
+# Anzahl Beobachtungen
+n_train <- nrow(Auto_train_data)
+# RMSE
+sqrt(sum(auto_res^2)/n_train)
+```
+
+RMSE für Testdaten berechnen, zuerst müssen dafür die Werte mit dem geschätzten Modell prognostiziert werden. Dann wird der RMSE ermittelt.
+
+```{r}
+# Testdaten mit dem Modell anpassen
+auto_test_fit <- predict(auto_lm_train, Auto_test_data) 
+auto_test_res <- Auto_test_data$mpg - auto_test_fit
+
+# Anzahl Beobachtungen
+n_test <- nrow(Auto_test_data)
+
+# RMSE
+sqrt(sum(auto_test_res^2)/n_test)
+
+# zu einem Datenobjekt zusammenfuegen für ggplot
+Auto_test_total <- tibble(Auto_test_data, fitted = auto_test_fit, residuals = auto_test_res)
+```
+
+## b) Residuen
+
+Residuen darstellen in Test- und Trainingsdaten. Das Modell liefert als Ergebnis die angepassten Werte (fitted values) und die Residuen mit (Argumente des Modellergebnisses).
+
+Residuen müssen immer zufällig sein. Auch sollten beobachtete und angepasste Daten um die Winkelhalbierende zufällig verteilt sein. Würden Punkte exakt auf der Winkelhalbierende liegen, wäre es die perfekte Prognose, denn dann wären prognostizierte Werte gleich beobachteter Werte. 
+
+Wir sehen, dass die Abweichungen nicht zufällig sind, das Modell scheint nicht zu passen!
+
+```{r}
+library(ggplot2)
+# fuer mehrere Plots in einer ausgabe
+library(ggpubr)
+# paket fuer augment: hinzufuegen weiterer Infos eg fitted und residuals
+library(broom)
+
+
+  
+# Fitted values der trainingsdaten
+train.1 <- ggplot(augment(auto_lm_train), aes(x= mpg, y= .fitted)) + 
+                geom_point() +
+                geom_abline(intercept = 0, slope = 1) +
+                ggtitle("Fitted Values Trainingsdaten")
+
+# Residuen der trainingsdaten
+train.2 <- ggplot(augment(auto_lm_train), aes(x= mpg, y=.resid)) + 
+                geom_point() +
+                geom_hline(yintercept = 0) +
+                ggtitle("Residuen Trainingsdaten")
+
+# Fitted values der testdaten
+test.1 <- ggplot(Auto_test_total, aes(x= mpg, y=fitted)) + 
+                geom_point() +
+                geom_abline(intercept = 0, slope = 1) +
+                ggtitle("Fitted Values Testdaten")
+
+# Residuen der testdaten
+test.2 <- ggplot(Auto_test_total, aes(x= mpg, y=residuals)) + 
+                geom_point() +
+                geom_hline(yintercept = 0) +
+                ggtitle("Residuen Testdaten")
+
+ggarrange(train.1, train.2, test.1, test.2, ncol=2, nrow=2)
+
+
+```
+
+
+
+## c) Korrelation
+
+Für ein besseres Verständnis der Daten und welches Modell passen könnte, werden nun Korrelationen zwischen den Variablen berechnet und Streudiagramme verwendet. 
+
+Wir sehen eine hohe Korrelation von cylinders und displacement, cylinders und horsepower, displacement und horsepower. 
+
+```{r}
+Auto %>%
+  select(mpg , cylinders, displacement, horsepower) %>%
+  cor()
+```
+
+Streudiagramm zeigt auch noch einmal Zusammenhang auf.
+
+```{r}
+library(GGally)
+Auto %>%
+  select(mpg , cylinders, displacement, horsepower) %>%
+  ggpairs ()
+```
+
+Der individuelle Effekt $\widehat \beta_k$ kann bei hohen Korrelationen nicht gut separiert werden.
+
+Theorie: Horsepower wird von Hubraum (displaccement) und weiteren Faktoren beeinflusst (Motor: Turbolader etc.). Horsepower auch hoch korreliert mit Gewicht `r cor(Auto[,4:5])`, daher jetzt nur noch Horsepower zur Erklärung.
+
+Der Zusammenhang scheint nicht linear zu sein, dennoch kann mit einem linearen Modell gestartet werden.
+
+```{r}
+ggplot(Auto, aes(x=horsepower, y=mpg)) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x)
+```
+
+
+## d) verbessertes Modell
+
+Es soll ein verbessertes Modell geschätzt werden. Es wird nur horsepower verwendet.
+
+```{r}
+auto_lm_train_2 <- lm(data = Auto_train_data, mpg ~ horsepower)
+
+auto_lm_train_2 %>% summary()
+```
+
+Es werden die Residuen geprüft. Die Residuen sind immer noch nicht zufällig!
+
+```{r}
+ggplot(augment(auto_lm_train_2), aes(x= mpg, y=.resid)) + 
+                geom_point() +
+                geom_hline(yintercept = 0) +
+                ggtitle("Residuen Trainingsdaten Modell 2")
+```
+
+Es wird nun ein weiteres Modell geschätzt, das eine neue Variable aufnimmt: horsepower zum Quadrat. Es könnte auch eine neue transformierte Variable in das Modell aufgenommen werden, die Methode **I()** zur Formulierung der Formel vereinfacht aber das Handling der Test-/Trainingsdaten in R. 
+
+```{r}
+auto_lm_train_3 <- lm(data = Auto_train_data, mpg ~ horsepower + I(horsepower^2))
+
+auto_lm_train_3 %>% summary()
+```
+
+Betrachten des Residuenplots zeigt, dass es noch kein ideales Modell ist, aber der Fehler in den Testdaten ist gesunken. Es scheint auf unbekannten Daten zu funktionieren. 
+
+```{r}
+ggplot(augment(auto_lm_train_3), aes(x= mpg, y=.resid)) + 
+                geom_point() +
+                geom_hline(yintercept = 0) +
+                ggtitle("Residuen Trainingsdaten Modell 3")
+```
+
+```{r}
+library(magrittr)
+auto_lm_train_3 %>%
+  augment() %$%
+  sqrt(sum(.resid^2)/n_train)
+```
+
+```{r}
+# Testdaten
+auto_test_fit_3 <- predict(auto_lm_train_3, Auto_test_data) 
+auto_test_res_3 <- Auto_test_data$mpg - auto_test_fit_3
+
+# RMSE
+sqrt(sum(auto_test_res_3^2)/n_test)
+```
+
+# Aufgabe 8
+
+Datensatz Hitter aus dem R Paket ISLR: Mithilfe des Datensatzes soll das Gehalt eines Baseball Spielers basierend auf verschiedenen Spieler-Statistiken und der Vorjahres-Leistung geschätzt werden. Führen Sie eine Forward-Selektion zur Auswahl eines finalen Modells durch. Interpretieren Sie das Modellergebnis.
+
+Informationen zum Datensatz
+```{r}
+?Hitters
+```
+
+Dimension des Datensatzes 322 x 20
+```{r}
+Hitters <- tibble(Hitters )
+Hitters
+```
+
+Zusammenfassende Statistiken. Wir erkennen: Salary hat NA Werte.
+```{r}
+Hitters %>%
+  summary()
+
+```
+
+
+Aufgrund der Fehlwerte in Salary werden die Zeilen mit nicht vollständigen Beobachtungen entfernt. Durch die Zuweisung auf Hitters selber, wird der Datensatz (ohne Fehlermeldung!) einfach überschrieben.
+
+```{r}
+Hitters <- Hitters %>% 
+            filter(Salary != "NA" )
+```
+
+## Forward-Selection
+
+Für Forward Selection gibt es bereits implementierte Algorithmen, z.B. in **leaps**. 
+
+Asteriks zeigt an, welche Variablen in dem Modell sind z.B. das beste Modell mit zwei Variablen hat CRBI und Hits als erklärende Variablen.
+
+```{r}
+library(leaps)
+salary.fwd = regsubsets(Salary~.,data=Hitters ,nvmax =19,
+                        method ="forward")
+summary(salary.fwd)
+```
+
+Welches Modell ist nun zu wählen? Dafür wird einmal geschaut, welche Argumente der Forward Selection ALgorithmus mitgibt. 
+
+```{r}
+?regsubsets
+```
+
+Wir schauen uns die korrigierten $R^2$ an. 
+
+```{r}
+summary(salary.fwd)$adjr2
+```
+
+**which.max()** gibt den Index des maximalen Werts zurück
+
+```{r}
+which.max(summary(salary.fwd)$adjr2)
+
+```
+
+Wir erhalten nun die Koeffizienten des besten Modells mit dem Befehl coef(). Wichtig: backward und forward-Methoden können unterschiedliche Ergebnisse in der Modellselektion haben.
+
+```{r}
+coef(salary.fwd, 11)
+```
+
+Interpretation des Modells, z.B, der Effekt von **Hits**:
+
+Nimmt Anzahl von Hits um eine Einheit zu ( 1 Hit), so steigt **ceteris paribus (c.p.)** das **durchschnittliche** Gehalt um 6,924 T US Dollar.  Ob dieser Effekt statistisch signifikant ist, wird nächste Vorlesung behandelt.
+
+```{r}
+summary(lm(Salary ~ AtBat + Hits + Walks + CAtBat + CRuns+ CRBI  + CWalks + League +Division +PutOuts   + Assists , data = Hitters))
+```
+
+
+# Zusatzaufgabe zu kategorialen Daten
+
+Ladet das Single Resident Apartment Dataset von letzter Stunde.
+
+```{r}
+mydata <- read_tsv("../../Daten/hh111/hh111.ann.txt", 
+                   col_names = c("timestamp", "name.of.sensor", 
+                                 "room.level", "room.detail", "message", "sensor.type",
+                                  "classes"))
+mydata
+```
+
+```{r}
+mydata.subset <- mydata %>% 
+    filter(sensor.type == "Control4-Temperature" & room.detail != "Ignore" ) %>%
+    select(message, classes)
+      
+mydata.subset %>% head()
+```
+Die Spalte message hat den Typ chr (Character). Es muss in einen numerischen Wert gewandelt werden. Außerdem brauchen wir eine Dummy-Variable, die aus 0 und 1 besteht. Da ich euch gerne zeigen möchte, dass R bei einer Klasse mit den Factoren sehr gut mitdenkt, wird in case_when() wieder ein Character-Vektor erzeugt mit Einträgen Breakfast, Dinner und NA.
+
+```{r}
+
+mydata.subset <- mydata.subset  %>%
+  mutate(message = as.numeric(message)) %>%
+  mutate(
+    dinner = case_when(
+    classes == "Cook_Breakfast" | classes == "Eat_Breakfast" ~ "Breakfast",
+    classes == "Cook_Dinner" | classes == "Eat_Dinner" ~ "Dinner")) 
+    
+mydata.subset
+      
+```
+
+Es wird nun mit einem linearen Modell der durchschnittliche Unterschied der Temperaturen zwischen Breakfast und Dinner geschätzt. Wir nehmen unsere neue Variabale dinner als erklärende Variable auf. R behandelt die Variable korrekt und formt es zu einer Dummy Variable mit 0 und 1. R hat dabei Dinner als 1 hinterlegt (siehe Name des Coefficients) und Breakfast als 0. Das Regressionsergebnis zeigt, dass im Durchschnitt die Temperatur beim Frühstück 23,636 ist (Dinner = 0, das Modell besteht für Breakfast nur aus der Konstanten). Im Durchschnitt ist die Temperatur beim Dinner 1,9261 Einheiten höher. Die Interpretation des Steigungsparameters ist immer ein Vergleich zur Basis-Kategorie. In unserem Fall also Breakfast.
+
+```{r}
+
+mydata.subset  %>%
+  lm(message ~ dinner, .) %>% summary()
+      
+```
+
+Im Skript findet ihr eine weitere Aufgabe für drei Klassen. Hier müssen dann zwei Dummy Variablen gebildet werden. 
